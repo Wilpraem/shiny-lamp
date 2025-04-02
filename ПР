@@ -1,39 +1,143 @@
 import time
 import os
 import math
+import random
+from argparse import ArgumentParser
 
 def clear_screen():
     """Очистка экрана: cls для Windows, clear для Unix-подобных систем."""
     os.system('cls' if os.name == 'nt' else 'clear')
 
-def draw_lamp(radius, color):
-    """Отрисовка лампы в виде окружности из символов в терминале."""
-    width, height = 40, 20
+def draw_lamp(radius, color, style='*', brightness=1.0):
+    """Отрисовка лампы в виде окружности из символов в терминале.
+    
+    Args:
+        radius: Радиус лампы
+        color: ANSI-код цвета
+        style: Символ для отрисовки лампы
+        brightness: Яркость лампы (от 0.0 до 1.0)
+    """
+    # Получаем размер терминала (если возможно)
+    try:
+        terminal_size = os.get_terminal_size()
+        width, height = terminal_size.columns, terminal_size.lines
+    except:
+        width, height = 40, 20
+    
     center_x, center_y = width // 2, height // 2
-
-    for y in range(height):
+    
+    # Символы разной плотности для создания градиента яркости
+    density_chars = " .,:;+*#@"
+    
+    for y in range(height - 1):  # -1 чтобы оставить место для подсказки внизу
         line = ""
         for x in range(width):
             # Вычисляем расстояние от центра
             dist = math.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
+            
             if dist <= radius:
-                line += color + "*" + "\033[0m"
+                # Создаем эффект градиента к краям
+                gradient = 1.0 - (dist / radius)
+                gradient *= brightness  # Применяем общую яркость
+                
+                # Выбираем символ в зависимости от градиента
+                if style == 'gradient':
+                    char_idx = min(int(gradient * len(density_chars)), len(density_chars) - 1)
+                    char = density_chars[char_idx]
+                else:
+                    char = style
+                
+                line += color + char + "\033[0m"
             else:
                 line += " "
         print(line)
+    
+    # Информация внизу экрана
+    print(f"\033[97mНажмите Ctrl+C для выхода | Радиус: {radius} | Цвет: {colors_names[color]}\033[0m")
+
+def pulse_effect(radius, min_radius=5, max_radius=10, steps=10):
+    """Создает эффект пульсации, возвращая новый радиус."""
+    global pulse_direction, current_step
+    
+    if not hasattr(pulse_effect, 'direction'):
+        pulse_effect.direction = 1  # 1 - увеличение, -1 - уменьшение
+        pulse_effect.current_step = 0
+    
+    step_size = (max_radius - min_radius) / steps
+    
+    # Изменяем направление на границах
+    if radius >= max_radius:
+        pulse_effect.direction = -1
+    elif radius <= min_radius:
+        pulse_effect.direction = 1
+    
+    return radius + (step_size * pulse_effect.direction)
+
+def get_random_color():
+    """Возвращает случайный ANSI-код цвета."""
+    color_codes = [
+        "\033[91m",  # красный
+        "\033[92m",  # зеленый
+        "\033[93m",  # желтый
+        "\033[94m",  # синий
+        "\033[95m",  # пурпурный
+        "\033[96m",  # голубой
+        "\033[97m",  # белый
+    ]
+    return random.choice(color_codes)
+
+def parse_arguments():
+    """Обработка аргументов командной строки."""
+    parser = ArgumentParser(description="Анимированная лампа в терминале")
+    parser.add_argument("-m", "--mode", choices=["static", "color", "pulse", "all"], 
+                        default="color", help="Режим работы: одиночный цвет, смена цветов, пульсация или все эффекты")
+    parser.add_argument("-d", "--delay", type=float, default=0.5, 
+                        help="Задержка между кадрами анимации (в секундах)")
+    parser.add_argument("-s", "--style", default="*", 
+                        help="Символ для отрисовки лампы или 'gradient' для градиентной отрисовки")
+    return parser.parse_args()
 
 def main():
-    colors = ["\033[91m", "\033[94m", "\033[97m"]  # Красный, Синий, Белый (ANSI коды)
+    # По умолчанию используем режим переливания цветов как в оригинале
+    # Но сохраняем возможность изменения параметров через командную строку
+    args = parse_arguments()
+    
+    global colors_names
+    # Возвращаем оригинальную комбинацию цветов
+    colors = {
+        "\033[91m": "Красный",
+        "\033[94m": "Синий",
+        "\033[97m": "Белый"
+    }
+    colors_names = colors
+    color_list = list(colors.keys())
+    
     index = 0
+    radius = 7.0
+    brightness = 1.0
+    brightness_direction = -0.05
+    
     try:
         while True:
             clear_screen()
-            # Фиксированный радиус для лампы (можно варьировать, если хочется эффекта мерцания)
-            radius = 7  
-            current_color = colors[index]
-            draw_lamp(radius, current_color)
-            time.sleep(0.5)  # задержка между сменой цветов
-            index = (index + 1) % len(colors)  # переход к следующему цвету
+            
+            # Всегда меняем цвета (как в оригинальном коде)
+            current_color = color_list[index]
+            index = (index + 1) % len(color_list)
+            
+            # Эффект пульсации только если выбран соответствующий режим
+            if args.mode == "pulse" or args.mode == "all":
+                radius = pulse_effect(radius)
+            
+            # Эффект яркости только если выбран соответствующий режим
+            if args.mode == "all":
+                brightness += brightness_direction
+                if brightness <= 0.3 or brightness >= 1.0:
+                    brightness_direction *= -1
+            
+            draw_lamp(radius, current_color, args.style, brightness)
+            time.sleep(args.delay)
+            
     except KeyboardInterrupt:
         clear_screen()
         print("Выход из программы.")
