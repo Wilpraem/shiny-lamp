@@ -20,4 +20,4 @@
 3. Запустите скрипт командой:
 
    ```bash
-   python lamp.py
+   python ПР.py
