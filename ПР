@@ -1,0 +1,54 @@
+import time
+import random
+import os
+import math
+
+def clear_screen():
+    # Очистка экрана (cls для Windows, clear для Unix-подобных систем)
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def get_color():
+    # Список ANSI‑escape кодов для ярких цветов (можно менять для разных эффектов)
+    colors = [
+        "\033[93m",  # желтый
+        "\033[91m",  # красный
+        "\033[92m",  # зеленый
+        "\033[94m",  # синий
+        "\033[95m",  # магента
+        "\033[96m"   # голубой
+    ]
+    return random.choice(colors)
+
+def draw_lamp(radius, color):
+    # Размер "холста" для ASCII‑графики
+    width, height = 40, 20
+    center_x, center_y = width // 2, height // 2
+
+    # Формируем строки для вывода
+    for y in range(height):
+        line = ""
+        for x in range(width):
+            # Вычисляем расстояние от центра
+            dist = math.sqrt((x - center_x) ** 2 + (y - center_y) ** 2)
+            if dist <= radius:
+                line += color + "*" + "\033[0m"
+            else:
+                line += " "
+        print(line)
+
+def main():
+    try:
+        while True:
+            clear_screen()
+            # Имитация мерцания: случайный выбор радиуса и цвета
+            radius = random.uniform(4, 9)  # изменяется радиус лампы (в символах)
+            color = get_color()
+            draw_lamp(radius, color)
+            time.sleep(0.3)
+    except KeyboardInterrupt:
+        # При прерывании (Ctrl+C) завершаем работу
+        clear_screen()
+        print("Выход из программы.")
+
+if __name__ == "__main__":
+    main()
